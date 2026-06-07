@@ -10,9 +10,9 @@
 ## Domain
 
 <!-- What domain did you choose? Why is this knowledge valuable and hard to find through official channels? -->
-College campus events: cultural days, club meetings, workshops, guest talks, and other on-campus activities.
+College campus opportunities: research positions, scholarships, study abroad programs, internships, and other academic and career opportunities.
 
-Why this is valuable and hard to find: event information is scattered across official calendars, department pages, club social media, mailing lists, posters, and private channels (Discord/WhatsApp). Small clubs and ad-hoc groups often post last-minute updates or use inconsistent formats, and official sites frequently omit details (exact room, RSVP links, contact person). Aggregating and normalizing these sources makes it easy to ask natural-language questions like "What events are happening this weekend near the student center?" and get reliable time, location, and RSVP/contact info without manually searching multiple places.
+Why this is valuable and hard to find: opportunity information is scattered across department pages, research group sites, scholarship portals, study‑abroad pages, faculty webpages, mailing lists, and private channels (Discord/WhatsApp). Individual research groups, scholarship offices, and faculty often publish eligibility, deadlines, or contact details inconsistently, and official pages frequently omit key fields (application links, advisor contact, or deadline). Aggregating and normalizing these sources makes it easy to ask natural-language questions like "What research positions are open this semester in the College of Science?" and get reliable eligibility, deadline, and contact info without manually searching multiple places.
 
 ---
 
@@ -23,16 +23,17 @@ Why this is valuable and hard to find: event information is scattered across off
 
 | # | Source | Description | URL or location |
 |---|--------|-------------|-----------------|
-| 1 | GMU calendar | Central source for larger campus events | https://www.gmu.edu/calendar |
-| 2 | Mason360 | Official GMU student-engagement/events & groups platform (Events, Groups, RSVP) | https://mason360.gmu.edu/events|
-| 3 | College of Science — Research Opportunities | Departmental research opportunities and student research listings | https://science.gmu.edu/research/research-opportunities |
-| 4 | GMU News & Events (The GEORGE) | University announcements, lectures, featured events | https://www.gmu.edu/news |
-| 5 | Schar School events | Department-level seminars and public talks (example department) | https://schar.gmu.edu/events |
-| 6 | Fourth Estate (student newspaper) | Student coverage and event write-ups | https://gmufourthestate.com |
-| 7 | r/gmu (Reddit) | Community posts, informal announcements, student tips | https://www.reddit.com/r/gmu |
-| 8 | George Mason Instagram | Fast, last-minute announcements from official accounts | https://www.instagram.com/georgemasonu/ |
-| 9 | George Mason Facebook | Official Facebook page and event posts | https://www.facebook.com/georgemason |
-|10 | RecWell (Recreation & Wellness) | Fitness classes, intramurals, campus rec events | https://recreation.gmu.edu |
+| 1 | GMU Financial Aid — Scholarships | Official Mason scholarship listings and university scholarship portal | https://www.gmu.edu/financial-aid/types-aid/scholarships |
+| 2 | Student Life — Student Organizations & Involvement | Public student-life resources and links to student organizations and opportunities | https://www.gmu.edu/student-life |
+| 3 | GMU Research / Office of Research | Central research office: funding opportunities, centers, research news | https://www.gmu.edu/research |
+| 4 | College of Science — Research Opportunities | Departmental research opportunities and student research listings | https://science.gmu.edu/research/research-opportunities |
+| 5 | Global Education Office (Study Abroad) | Study abroad programs, scholarships, deadlines, and application portal | https://studyabroad.gmu.edu |
+| 6 | University Career Services | Internships, employer listings, Handshake, and career scholarships/events | https://careers.gmu.edu/find-job-or-internship |
+| 7 | University Career Services — Events | Career-focused events, workshops, and employer fairs (useful for internships and opportunity discovery) | https://careers.gmu.edu/events |
+| 8 | Research Centers Directory | University research centers and institutes (central directory of centers/labs) | https://www.gmu.edu/research/research-centers |
+| 9 | Graduate Fellowships & Grants (Grad School) | Funding opportunities for graduate students and fellowship listings | https://graduate.gmu.edu/financial-support/grants-fellowships-awards |
+|10 | External Scholarship Resources & Student News | Mason news, student newspaper, and external scholarship aggregators | https://www.gmu.edu/news; https://gmufourthestate.com/category/news/ |
+|11 | Financial Aid — Eligibility | Financial aid eligibility rules and links (parents/students) | https://www.gmu.edu/financial-aid-parent/eligibility |
 ---
  
 ## Chunking Strategy
