@@ -10,6 +10,9 @@
 ## Domain
 
 <!-- What domain did you choose? Why is this knowledge valuable and hard to find through official channels? -->
+College campus events: cultural days, club meetings, workshops, guest talks, and other on-campus activities.
+
+Why this is valuable and hard to find: event information is scattered across official calendars, department pages, club social media, mailing lists, posters, and private channels (Discord/WhatsApp). Small clubs and ad-hoc groups often post last-minute updates or use inconsistent formats, and official sites frequently omit details (exact room, RSVP links, contact person). Aggregating and normalizing these sources makes it easy to ask natural-language questions like "What events are happening this weekend near the student center?" and get reliable time, location, and RSVP/contact info without manually searching multiple places.
 
 ---
 
@@ -20,19 +23,18 @@
 
 | # | Source | Description | URL or location |
 |---|--------|-------------|-----------------|
-| 1 | | | |
-| 2 | | | |
-| 3 | | | |
-| 4 | | | |
-| 5 | | | |
-| 6 | | | |
-| 7 | | | |
-| 8 | | | |
-| 9 | | | |
-| 10 | | | |
-
+| 1 | GMU calendar | Central source for larger campus events | https://www.gmu.edu/calendar |
+| 2 | Mason360 | Official GMU student-engagement/events & groups platform (Events, Groups, RSVP) | https://mason360.gmu.edu/events|
+| 3 | College of Science — Research Opportunities | Departmental research opportunities and student research listings | https://science.gmu.edu/research/research-opportunities |
+| 4 | GMU News & Events (The GEORGE) | University announcements, lectures, featured events | https://www.gmu.edu/news |
+| 5 | Schar School events | Department-level seminars and public talks (example department) | https://schar.gmu.edu/events |
+| 6 | Fourth Estate (student newspaper) | Student coverage and event write-ups | https://gmufourthestate.com |
+| 7 | r/gmu (Reddit) | Community posts, informal announcements, student tips | https://www.reddit.com/r/gmu |
+| 8 | George Mason Instagram | Fast, last-minute announcements from official accounts | https://www.instagram.com/georgemasonu/ |
+| 9 | George Mason Facebook | Official Facebook page and event posts | https://www.facebook.com/georgemason |
+|10 | RecWell (Recreation & Wellness) | Fitness classes, intramurals, campus rec events | https://recreation.gmu.edu |
 ---
-
+ 
 ## Chunking Strategy
 
 <!-- How will you split documents into chunks?
