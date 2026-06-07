@@ -155,4 +155,4 @@ Implement a robust ingestion pipeline that fetches/renders pages (requests + Pla
 Chunks with ``all-MiniLM-L6-v2`` and index into ChromaDB via ``embed_and_index()``; implement ``retrieve(query, top_k=50)`` plus a ``rerank()`` (cross-encoder) for top-5 refinement, and include scripts to rebuild the index and report recall@5, vector count, and avg tokens retrieved.
 
 **Milestone 5 — Generation and interface:**
-Build ``generate_answer()`` that assembles top evidence with inline citations into a prompt template, calls on LLM to produce concise, source-attributed answers, and expose it via app.py (FastAPI) withe end-to-end tests checking correctness, citation presence, and acceptable latency.
+Build ``generate_answer()`` that assembles top evidence with inline citations into a prompt template, calls on claud to produce concise, source-attributed answers, and expose it via app.py (FastAPI) withe end-to-end tests checking correctness, citation presence, and acceptable latency.
