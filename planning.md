@@ -44,10 +44,36 @@ Why this is valuable and hard to find: opportunity information is scattered acro
      A review-heavy corpus warrants different chunking than a long FAQ. -->
 
 **Chunk size:**
+300 tokens
 
 **Overlap:**
+60 tokens
 
 **Reasoning:**
+
+- Smaller chunks improve retrieval precision but increase vector count and cost. Larger chunks provide more context but can dilute relevance.
+- Overlap prevents important short facts from being split across chunks (critical for deadline/contact extraction).
+- Use semantic splitting where possible: prefer headings/paragraphs/list-items and sentence-aware splitters rather than blind fixed-window cuts.
+- Extract structured fields (deadline, contact, application link, eligibility) into chunk metadata to avoid loss through chunking.
+
+Practical splitter algorithm (high-level):
+1. Render JS pages when needed (headless browser) and extract relevant DOM sections.
+2. Clean boilerplate (nav/footer) and normalize text.
+3. Split at semantic boundaries (headings, lists, paragraphs). Within a section, sentence-split and accumulate sentences to the target token count; emit chunk when reached.
+4. Keep the last N tokens as overlap when emitting a chunk and continue.
+5. Attach metadata: `source_url`, `section_heading`, `chunk_index`, `crawl_date`, `published_date`, and structured fields like `deadline` / `contact` / `apply_link`.
+
+Experiment to select optimal size for this corpus:
+1. Build a validation set of ~20 representative pages (research listings, career pages, study-abroad program pages, scholarship pages).
+2. Index three configs:
+     - A: 200 tokens / 40 overlap
+     - B: 300 tokens / 60 overlap (default)
+     - C: 600 tokens / 100 overlap
+3. Run a suite of ~10 benchmark QA queries requiring grounding (deadlines, eligibility, contacts).
+4. Measure: answer accuracy (manual/golden check), retrieval recall@5, average tokens retrieved per query (cost proxy), and index size (vector count).
+5. Choose the config that gives highest accuracy with acceptable cost; if tied, prefer smaller chunks for better fact pinpointing.
+
+Starting config for this project: **300 tokens / 60 tokens overlap**, semantic splits at headings/paragraphs, and structured-field extraction for deadlines/contacts/links.
 
 ---
 
@@ -60,11 +86,14 @@ Why this is valuable and hard to find: opportunity information is scattered acro
      support, accuracy on domain-specific text, latency? -->
 
 **Embedding model:**
+all-MiniLM-L6-v2 
 
 **Top-k:**
+50
 
 **Production tradeoff reflection:**
 
+Maybe a larger/higer-dim models increase relevance for paraphrases and domain-specific phrasing. Also using embedding trained on multillingual data if the sources/queries aren't all English.
 ---
 
 ## Evaluation Plan
@@ -76,11 +105,11 @@ Why this is valuable and hard to find: opportunity information is scattered acro
 
 | # | Question | Expected answer |
 |---|----------|-----------------|
-| 1 | | |
-| 2 | | |
-| 3 | | |
-| 4 | | |
-| 5 | | |
+| 1 | "What are the top 5 ways Mason graduates found jobs? | "Internships; job sites (Handshake/LinkedIn/Indeed); relationships (faculty/alumni/friends); company/organization websites; networking events/career fairs" |
+| 2 | "What does ASSIP stand for?" | "Aspiring Scientists Program" |
+| 3 | "What types of financial aid does GMU list on the Scholarships page?" | "Mason Merit Scholarships, Mason Foundation Scholarships, ..."|
+| 4 | "Name three research centers listed in GMU's Research Centers directory." | "Institute for Sustainable Earth, Digital InnovAtion, ..."|
+| 5 | "What kinds of funding opportunities does GMU list for graduate students?" | "Research, FieldWork, ..." |
 
 ---
 
@@ -90,9 +119,10 @@ Why this is valuable and hard to find: opportunity information is scattered acro
      Consider: noisy or inconsistent documents, missing source attribution, off-topic
      retrieval, chunks that split key information across boundaries. -->
 
-1.
+1. **Inconsistent structure:** Departments and faculty pages vary widely; deadlines, contacts, or apply links may be ommited or embedded in images, so
+automated extractors will miss or mislabel critical fields.
 
-2.
+2. **Noisy:** News, blogs and event pages include promotional or unrelated text that can pollute embeddings and surface irrelevant results, increasing hallucination risk.
 
 ---
 
@@ -103,7 +133,7 @@ Why this is valuable and hard to find: opportunity information is scattered acro
      Label each stage with the tool or library you're using.
      You can use ASCII art, a Mermaid diagram, or embed a sketch as an image.
      You'll use this diagram as context when prompting AI tools to implement each stage. -->
-
+![RAG diagram ](./RAG%20Document%20Retrieval-2026-06-07-213028.png)
 ---
 
 ## AI Tool Plan
@@ -119,7 +149,10 @@ Why this is valuable and hard to find: opportunity information is scattered acro
      with my specified chunk size and overlap" is a plan. -->
 
 **Milestone 3 — Ingestion and chunking:**
+Implement a robust ingestion pipeline that fetches/renders pages (requests + Playwright), cleans boilerplate, and produces semantic chunks via ``chunk_text()`` using the 300-token / 60-token overlap strategy while extracting metadata (deadline, contact, apply_link); provide ``ingest_sample.py`` and unit tests to verify chunk sizes, overlap, and metadata presence on the validation set.
 
 **Milestone 4 — Embedding and retrieval:**
+Chunks with ``all-MiniLM-L6-v2`` and index into ChromaDB via ``embed_and_index()``; implement ``retrieve(query, top_k=50)`` plus a ``rerank()`` (cross-encoder) for top-5 refinement, and include scripts to rebuild the index and report recall@5, vector count, and avg tokens retrieved.
 
 **Milestone 5 — Generation and interface:**
+Build ``generate_answer()`` that assembles top evidence with inline citations into a prompt template, calls on LLM to produce concise, source-attributed answers, and expose it via app.py (FastAPI) withe end-to-end tests checking correctness, citation presence, and acceptable latency.
