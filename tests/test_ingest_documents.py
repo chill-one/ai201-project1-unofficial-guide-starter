@@ -3,7 +3,7 @@ import unittest
 from pathlib import Path
 from unittest.mock import patch
 
-from chroma_store import embed_and_index, retrieve
+from chroma_store import count_vectors, embed_and_index, rerank, retrieve
 from ingest_documents import clean_text, chunk_text, count_tokens, ingest_documents
 
 try:
@@ -26,6 +26,19 @@ class FakeEmbeddingModel:
             else:
                 embeddings.append([0.0, 0.0, 1.0])
         return embeddings
+
+
+class FakeRerankModel:
+    def predict(self, pairs):
+        scores = []
+        for _query, text in pairs:
+            if "Aspiring Scientists" in text:
+                scores.append(10.0)
+            elif "Scholarship" in text:
+                scores.append(2.0)
+            else:
+                scores.append(0.5)
+        return scores
 
 
 class IngestDocumentsTest(unittest.TestCase):
@@ -158,8 +171,13 @@ class IngestDocumentsTest(unittest.TestCase):
                     persist_dir=Path(tmpdir),
                     collection_name="test_collection",
                 )
+                vector_count = count_vectors(
+                    persist_dir=Path(tmpdir),
+                    collection_name="test_collection",
+                )
 
         self.assertEqual(indexed_count, 1)
+        self.assertEqual(vector_count, 1)
         self.assertEqual(results[0]["id"], "research.txt::0001")
         self.assertIn("Aspiring Scientists", results[0]["text"])
         self.assertEqual(results[0]["metadata"]["source_name"], "research.txt")
@@ -207,6 +225,30 @@ class IngestDocumentsTest(unittest.TestCase):
 
         self.assertEqual(len(results), 1)
         self.assertEqual(results[0]["id"], "research.txt::0001")
+
+    def test_rerank_sorts_by_cross_encoder_score(self):
+        results = [
+            {
+                "id": "aid.txt::0001",
+                "text": "Scholarship applications include merit awards.",
+                "metadata": {"source_name": "aid.txt"},
+                "distance": 0.1,
+            },
+            {
+                "id": "research.txt::0001",
+                "text": "ASSIP means Aspiring Scientists Summer Internship Program.",
+                "metadata": {"source_name": "research.txt"},
+                "distance": 0.5,
+            },
+        ]
+
+        with patch("chroma_store.get_rerank_model", return_value=FakeRerankModel()):
+            reranked = rerank("What does ASSIP stand for?", results, top_k=1)
+
+        self.assertEqual(len(reranked), 1)
+        self.assertEqual(reranked[0]["id"], "research.txt::0001")
+        self.assertEqual(reranked[0]["rerank_rank"], 1)
+        self.assertEqual(reranked[0]["rerank_score"], 10.0)
 
 
 if __name__ == "__main__":

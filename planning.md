@@ -105,7 +105,7 @@ Maybe a larger/higer-dim models increase relevance for paraphrases and domain-sp
 
 | # | Question | Expected answer |
 |---|----------|-----------------|
-| 1 | "What are the top 5 ways Mason graduates found jobs? | "Internships; job sites (Handshake/LinkedIn/Indeed); relationships (faculty/alumni/friends); company/organization websites; networking events/career fairs" |
+| 1 | "What are the top 5 ways Mason graduates found jobs?" | "Internships; job sites (Handshake/LinkedIn/Indeed); relationships (faculty/alumni/friends); company/organization websites; networking events/career fairs" |
 | 2 | "What does ASSIP stand for?" | "Aspiring Scientists Program" |
 | 3 | "What types of financial aid does GMU list on the Scholarships page?" | "Mason Merit Scholarships, Mason Foundation Scholarships, ..."|
 | 4 | "Name three research centers listed in GMU's Research Centers directory." | "Institute for Sustainable Earth, Digital InnovAtion, ..."|

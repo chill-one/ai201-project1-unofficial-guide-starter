@@ -8,6 +8,7 @@ from pathlib import Path
 DEFAULT_PERSIST_DIR = Path("chroma_db")
 DEFAULT_COLLECTION_NAME = "gmu_opportunities"
 DEFAULT_MODEL_NAME = "sentence-transformers/all-MiniLM-L6-v2"
+DEFAULT_RERANK_MODEL_NAME = "cross-encoder/ms-marco-MiniLM-L-6-v2"
 
 
 def get_embedding_model(model_name: str):
@@ -23,8 +24,25 @@ def get_embedding_model(model_name: str):
 
     try:
         return SentenceTransformer(model_name, local_files_only=True)
-    except TypeError:
+    except (OSError, TypeError):
         return SentenceTransformer(model_name)
+
+
+def get_rerank_model(model_name: str):
+    """Load the Sentence Transformers cross-encoder reranking model.
+
+    Args:
+        model_name: CrossEncoder model name or local path.
+
+    Returns:
+        A loaded CrossEncoder model.
+    """
+    from sentence_transformers import CrossEncoder
+
+    try:
+        return CrossEncoder(model_name, local_files_only=True)
+    except (OSError, TypeError):
+        return CrossEncoder(model_name)
 
 
 def get_chroma_client(persist_dir: Path):
@@ -186,3 +204,73 @@ def retrieve(
         )
 
     return retrieved
+
+
+def rerank(
+    query: str,
+    results: list[dict[str, object]],
+    *,
+    top_k: int = 5,
+    model_name: str = DEFAULT_RERANK_MODEL_NAME,
+) -> list[dict[str, object]]:
+    """Refine retrieved chunks with a cross-encoder reranker.
+
+    The reranker scores each ``(query, chunk_text)`` pair directly, then sorts
+    the candidate chunks from highest score to lowest score.
+
+    Args:
+        query: Natural-language search query.
+        results: Candidate chunks returned by ``retrieve``.
+        top_k: Maximum number of reranked chunks to return.
+        model_name: Sentence Transformers CrossEncoder model name.
+
+    Returns:
+        Reranked result dictionaries with ``rerank_score`` and ``rerank_rank``
+        added. Original retrieval metadata and distance values are preserved.
+
+    Raises:
+        ValueError: If ``query`` is empty or ``top_k`` is not positive.
+    """
+    if not query.strip():
+        raise ValueError("query must not be empty")
+    if top_k <= 0:
+        raise ValueError("top_k must be greater than 0")
+    if not results:
+        return []
+
+    model = get_rerank_model(model_name)
+    pairs = [(query, str(result.get("text", ""))) for result in results]
+    scores = model.predict(pairs)
+    if hasattr(scores, "tolist"):
+        scores = scores.tolist()
+
+    scored_results = []
+    for result, score in zip(results, scores):
+        scored = dict(result)
+        scored["rerank_score"] = float(score)
+        scored_results.append(scored)
+
+    scored_results.sort(key=lambda result: result["rerank_score"], reverse=True)
+    reranked = scored_results[:top_k]
+    for index, result in enumerate(reranked, start=1):
+        result["rerank_rank"] = index
+    return reranked
+
+
+def count_vectors(
+    *,
+    persist_dir: Path = DEFAULT_PERSIST_DIR,
+    collection_name: str = DEFAULT_COLLECTION_NAME,
+) -> int:
+    """Return the number of vectors stored in a ChromaDB collection.
+
+    Args:
+        persist_dir: Directory where the ChromaDB index is stored.
+        collection_name: ChromaDB collection to inspect.
+
+    Returns:
+        Number of vectors in the collection.
+    """
+    client = get_chroma_client(persist_dir)
+    collection = client.get_collection(collection_name)
+    return int(collection.count())

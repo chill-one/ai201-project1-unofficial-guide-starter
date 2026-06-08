@@ -13,8 +13,10 @@ from typing import Iterable
 from chroma_store import (
     DEFAULT_COLLECTION_NAME,
     DEFAULT_MODEL_NAME,
+    DEFAULT_RERANK_MODEL_NAME,
     DEFAULT_PERSIST_DIR,
     embed_and_index,
+    rerank,
     retrieve,
 )
 
@@ -358,6 +360,13 @@ def parse_args() -> argparse.Namespace:
     query_parser.add_argument("--persist-dir", default=DEFAULT_PERSIST_DIR, type=Path)
     query_parser.add_argument("--collection-name", default=DEFAULT_COLLECTION_NAME)
     query_parser.add_argument("--model-name", default=DEFAULT_MODEL_NAME)
+    query_parser.add_argument("--rerank-model-name", default=DEFAULT_RERANK_MODEL_NAME)
+    query_parser.add_argument("--rerank-top-k", default=5, type=int)
+    query_parser.add_argument(
+        "--no-rerank",
+        action="store_true",
+        help="Return raw Chroma retrieval results without cross-encoder reranking.",
+    )
     return parser.parse_args()
 
 
@@ -378,6 +387,13 @@ def main() -> int:
                 collection_name=args.collection_name,
                 model_name=args.model_name,
             )
+            if not args.no_rerank:
+                results = rerank(
+                    args.query,
+                    results,
+                    top_k=args.rerank_top_k,
+                    model_name=args.rerank_model_name,
+                )
             print(json.dumps(results, ensure_ascii=False, indent=2))
             return 0
 
