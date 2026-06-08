@@ -105,7 +105,7 @@ def count_tokens(text: str) -> int:
     return len(TOKEN_PATTERN.findall(text))
 
 
-def chunk_text(text: str, *, chunk_size: int = 300, overlap: int = 60) -> list[str]:
+def chunk_text(text: str, *, chunk_size: int = 1000, overlap: int = 150) -> list[str]:
     """Split cleaned text into overlapping character-based chunks.
 
     The chunker first packs paragraph blocks together when they fit within
@@ -268,9 +268,9 @@ def chunk_document(
 def ingest_documents(
     input_dir: Path,
     *,
-    chunk_size: int = 300,
-    overlap: int = 60,
-    min_chunk_tokens: int = 0,
+    chunk_size: int = 1000,
+    overlap: int = 150,
+    min_chunk_tokens: int = 50,
 ) -> tuple[list[dict[str, object]], int, int]:
     """Process a directory of local documents and return chunk records.
 
@@ -336,8 +336,8 @@ def parse_args() -> argparse.Namespace:
     subparsers = parser.add_subparsers(dest="command")
 
     parser.add_argument("--input-dir", default="documents", type=Path)
-    parser.add_argument("--chunk-size", default=300, type=int)
-    parser.add_argument("--overlap", default=60, type=int)
+    parser.add_argument("--chunk-size", default=1000, type=int)
+    parser.add_argument("--overlap", default=150, type=int)
     parser.add_argument(
         "--min-chunk-tokens",
         default=0,

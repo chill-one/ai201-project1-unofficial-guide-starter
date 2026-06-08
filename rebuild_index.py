@@ -21,8 +21,8 @@ def parse_args() -> argparse.Namespace:
         description="Clean, chunk, embed, and index local documents in ChromaDB."
     )
     parser.add_argument("--input-dir", default="documents", type=Path)
-    parser.add_argument("--chunk-size", default=300, type=int)
-    parser.add_argument("--overlap", default=60, type=int)
+    parser.add_argument("--chunk-size", default=1000, type=int)
+    parser.add_argument("--overlap", default=150, type=int)
     parser.add_argument("--min-chunk-tokens", default=0, type=int)
     parser.add_argument("--persist-dir", default=DEFAULT_PERSIST_DIR, type=Path)
     parser.add_argument("--collection-name", default=DEFAULT_COLLECTION_NAME)
@@ -34,8 +34,8 @@ def parse_args() -> argparse.Namespace:
 def rebuild_index(
     *,
     input_dir: Path = Path("documents"),
-    chunk_size: int = 300,
-    overlap: int = 60,
+    chunk_size: int = 1000,
+    overlap: int = 150,
     min_chunk_tokens: int = 0,
     persist_dir: Path = DEFAULT_PERSIST_DIR,
     collection_name: str = DEFAULT_COLLECTION_NAME,

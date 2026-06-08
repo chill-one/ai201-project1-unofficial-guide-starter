@@ -45,7 +45,7 @@ DEFAULT_EVALUATION_QUERIES: list[dict[str, object]] = [
         "min_matches": 1,
     },
     {
-        "question": "Name three research centers listed in GMU's Research Centers directory.",
+        "question": "Name three research Institute listed in GMU's Research Centers directory.",
         "expected_terms": ["Institute for Sustainable Earth", "Digital Innovation"],
         "min_matches": 1,
     },
