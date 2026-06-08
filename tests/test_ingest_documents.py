@@ -1,9 +1,31 @@
-import json
 import tempfile
 import unittest
 from pathlib import Path
+from unittest.mock import patch
 
+from chroma_store import embed_and_index, retrieve
 from ingest_documents import clean_text, chunk_text, count_tokens, ingest_documents
+
+try:
+    import chromadb  # noqa: F401
+
+    CHROMADB_AVAILABLE = True
+except ImportError:
+    CHROMADB_AVAILABLE = False
+
+
+class FakeEmbeddingModel:
+    def encode(self, texts, normalize_embeddings=True):
+        embeddings = []
+        for text in texts:
+            lower_text = text.lower()
+            if "assip" in lower_text or "aspiring scientists" in lower_text:
+                embeddings.append([1.0, 0.0, 0.0])
+            elif "scholarship" in lower_text:
+                embeddings.append([0.0, 1.0, 0.0])
+            else:
+                embeddings.append([0.0, 0.0, 1.0])
+        return embeddings
 
 
 class IngestDocumentsTest(unittest.TestCase):
@@ -40,12 +62,11 @@ class IngestDocumentsTest(unittest.TestCase):
         for previous, current in zip(chunks, chunks[1:]):
             self.assertEqual(previous[-20:], current[:20])
 
-    def test_ingest_documents_writes_jsonl_for_supported_files(self):
+    def test_ingest_documents_returns_records_for_supported_files(self):
         with tempfile.TemporaryDirectory() as tmpdir:
             root = Path(tmpdir)
             input_dir = root / "documents"
             input_dir.mkdir()
-            output_path = root / "chunks.jsonl"
 
             (input_dir / "aid.txt").write_text("Aid eligibility details." * 10, encoding="utf-8")
             (input_dir / "research.md").write_text("# Research\n\nOpen lab roles." * 10, encoding="utf-8")
@@ -56,23 +77,15 @@ class IngestDocumentsTest(unittest.TestCase):
             (input_dir / "ignore.pdf").write_text("unsupported", encoding="utf-8")
             (input_dir / "blank.txt").write_text("   \n\n", encoding="utf-8")
 
-            supported, skipped, chunk_count = ingest_documents(
+            records, supported, skipped = ingest_documents(
                 input_dir,
-                output_path,
                 chunk_size=120,
                 overlap=20,
             )
 
             self.assertEqual(supported, 4)
             self.assertEqual(skipped, 1)
-            self.assertGreater(chunk_count, 0)
-
-            records = [
-                json.loads(line)
-                for line in output_path.read_text(encoding="utf-8").splitlines()
-            ]
-
-            self.assertEqual(len(records), chunk_count)
+            self.assertGreater(len(records), 0)
             self.assertTrue(all(record["char_count"] <= 120 for record in records))
             self.assertTrue(any(record["source_name"] == "aid.txt" for record in records))
             self.assertTrue(any(record["source_name"] == "research.md" for record in records))
@@ -88,6 +101,7 @@ class IngestDocumentsTest(unittest.TestCase):
                 "chunk_size",
                 "overlap",
                 "char_count",
+                "token_count",
             }
             self.assertTrue(required_keys.issubset(records[0].keys()))
 
@@ -96,32 +110,103 @@ class IngestDocumentsTest(unittest.TestCase):
             root = Path(tmpdir)
             input_dir = root / "documents"
             input_dir.mkdir()
-            output_path = root / "chunks.jsonl"
 
             (input_dir / "sample.txt").write_text(
                 "Tiny\n\none two three four five six seven eight nine ten",
                 encoding="utf-8",
             )
 
-            supported, skipped, chunk_count = ingest_documents(
+            records, supported, skipped = ingest_documents(
                 input_dir,
-                output_path,
                 chunk_size=20,
                 overlap=0,
                 min_chunk_tokens=2,
             )
 
-            records = [
-                json.loads(line)
-                for line in output_path.read_text(encoding="utf-8").splitlines()
-            ]
-
             self.assertEqual(supported, 1)
             self.assertEqual(skipped, 0)
-            self.assertEqual(chunk_count, len(records))
             self.assertTrue(records)
             self.assertTrue(all(record["token_count"] >= 2 for record in records))
             self.assertFalse(any(record["text"] == "Tiny" for record in records))
+
+    @unittest.skipUnless(CHROMADB_AVAILABLE, "chromadb is not installed")
+    def test_embed_and_index_stores_chunks_in_chroma(self):
+        chunks = [
+            {
+                "chunk_id": "research.txt::0001",
+                "text": "ASSIP means Aspiring Scientists Summer Internship Program.",
+                "source_path": "documents/research.txt",
+                "source_name": "research.txt",
+                "chunk_index": 1,
+                "chunk_size": 300,
+                "overlap": 60,
+                "char_count": 58,
+                "token_count": 8,
+            }
+        ]
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            with patch("chroma_store.get_embedding_model", return_value=FakeEmbeddingModel()):
+                indexed_count = embed_and_index(
+                    chunks,
+                    persist_dir=Path(tmpdir),
+                    collection_name="test_collection",
+                )
+                results = retrieve(
+                    "What does ASSIP stand for?",
+                    top_k=1,
+                    persist_dir=Path(tmpdir),
+                    collection_name="test_collection",
+                )
+
+        self.assertEqual(indexed_count, 1)
+        self.assertEqual(results[0]["id"], "research.txt::0001")
+        self.assertIn("Aspiring Scientists", results[0]["text"])
+        self.assertEqual(results[0]["metadata"]["source_name"], "research.txt")
+
+    @unittest.skipUnless(CHROMADB_AVAILABLE, "chromadb is not installed")
+    def test_retrieve_returns_most_relevant_chunk(self):
+        chunks = [
+            {
+                "chunk_id": "research.txt::0001",
+                "text": "ASSIP means Aspiring Scientists Summer Internship Program.",
+                "source_path": "documents/research.txt",
+                "source_name": "research.txt",
+                "chunk_index": 1,
+                "chunk_size": 300,
+                "overlap": 60,
+                "char_count": 58,
+                "token_count": 8,
+            },
+            {
+                "chunk_id": "aid.txt::0001",
+                "text": "Scholarship applications include merit and foundation awards.",
+                "source_path": "documents/aid.txt",
+                "source_name": "aid.txt",
+                "chunk_index": 1,
+                "chunk_size": 300,
+                "overlap": 60,
+                "char_count": 61,
+                "token_count": 8,
+            },
+        ]
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            with patch("chroma_store.get_embedding_model", return_value=FakeEmbeddingModel()):
+                embed_and_index(
+                    chunks,
+                    persist_dir=Path(tmpdir),
+                    collection_name="test_collection",
+                )
+                results = retrieve(
+                    "ASSIP",
+                    top_k=1,
+                    persist_dir=Path(tmpdir),
+                    collection_name="test_collection",
+                )
+
+        self.assertEqual(len(results), 1)
+        self.assertEqual(results[0]["id"], "research.txt::0001")
 
 
 if __name__ == "__main__":

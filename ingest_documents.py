@@ -1,4 +1,4 @@
-"""Load local documents, clean text, and write character-based JSONL chunks."""
+"""Load local documents, clean text, and produce chunk records."""
 
 from __future__ import annotations
 
@@ -9,6 +9,14 @@ import re
 import sys
 from pathlib import Path
 from typing import Iterable
+
+from chroma_store import (
+    DEFAULT_COLLECTION_NAME,
+    DEFAULT_MODEL_NAME,
+    DEFAULT_PERSIST_DIR,
+    embed_and_index,
+    retrieve,
+)
 
 
 SUPPORTED_EXTENSIONS = {".txt", ".md", ".html", ".htm"}
@@ -213,7 +221,7 @@ def chunk_document(
     input_dir: Path,
     chunk_size: int,
     overlap: int,
-    min_chunk_tokens: int = 11,
+    min_chunk_tokens: int = 0,
 ) -> list[dict[str, object]]:
     """Load, clean, chunk, and annotate one supported document.
 
@@ -257,27 +265,26 @@ def chunk_document(
 
 def ingest_documents(
     input_dir: Path,
-    output_path: Path,
     *,
     chunk_size: int = 300,
     overlap: int = 60,
     min_chunk_tokens: int = 0,
-) -> tuple[int, int, int]:
-    """Process a directory of local documents and write JSONL chunk records.
+) -> tuple[list[dict[str, object]], int, int]:
+    """Process a directory of local documents and return chunk records.
 
-    Supported files are cleaned, chunked, and written as one JSON object per
-    line. Unsupported files are skipped with a warning to stderr.
+    Supported files are cleaned and chunked in memory. Unsupported files are
+    skipped with a warning to stderr.
 
     Args:
         input_dir: Directory containing local source documents.
-        output_path: JSONL file to create or overwrite.
         chunk_size: Maximum character length for each chunk.
         overlap: Character overlap between consecutive chunks.
         min_chunk_tokens: Drop chunks with fewer than this many lightweight
             tokens after chunking. Use ``0`` to keep every chunk.
 
     Returns:
-        A tuple of ``(supported_files, skipped_files, chunk_count)``.
+        A tuple of ``(records, supported_files, skipped_files)``. ``records``
+        contains JSON-serializable chunk dictionaries.
 
     Raises:
         FileNotFoundError: If ``input_dir`` does not exist.
@@ -293,43 +300,40 @@ def ingest_documents(
 
     supported_files = 0
     skipped_files = 0
-    chunk_count = 0
+    records: list[dict[str, object]] = []
 
-    output_path.parent.mkdir(parents=True, exist_ok=True)
-    with output_path.open("w", encoding="utf-8") as output_file:
-        for path in iter_document_paths(input_dir):
-            if path.suffix.lower() not in SUPPORTED_EXTENSIONS:
-                print(f"Skipping unsupported file: {path}", file=sys.stderr)
-                skipped_files += 1
-                continue
+    for path in iter_document_paths(input_dir):
+        if path.suffix.lower() not in SUPPORTED_EXTENSIONS:
+            print(f"Skipping unsupported file: {path}", file=sys.stderr)
+            skipped_files += 1
+            continue
 
-            supported_files += 1
-            records = chunk_document(
+        supported_files += 1
+        records.extend(
+            chunk_document(
                 path,
                 input_dir=input_dir,
                 chunk_size=chunk_size,
                 overlap=overlap,
                 min_chunk_tokens=min_chunk_tokens,
             )
-            for record in records:
-                output_file.write(json.dumps(record, ensure_ascii=False) + "\n")
-            chunk_count += len(records)
+        )
 
-    return supported_files, skipped_files, chunk_count
+    return records, supported_files, skipped_files
 
 
 def parse_args() -> argparse.Namespace:
     """Parse command-line options for the ingestion script.
 
     Returns:
-        Parsed CLI arguments containing the input directory, output path,
-        chunk size, and overlap settings.
+        Parsed CLI arguments for indexing or querying.
     """
     parser = argparse.ArgumentParser(
-        description="Load local documents, clean text, and write JSONL chunks."
+        description="Load local documents, index them in ChromaDB, and retrieve chunks."
     )
+    subparsers = parser.add_subparsers(dest="command")
+
     parser.add_argument("--input-dir", default="documents", type=Path)
-    parser.add_argument("--output", default="chunks.jsonl", type=Path)
     parser.add_argument("--chunk-size", default=300, type=int)
     parser.add_argument("--overlap", default=60, type=int)
     parser.add_argument(
@@ -338,11 +342,27 @@ def parse_args() -> argparse.Namespace:
         type=int,
         help="Drop chunks with fewer than this many lightweight tokens. Default keeps all chunks.",
     )
+    parser.add_argument("--persist-dir", default=DEFAULT_PERSIST_DIR, type=Path)
+    parser.add_argument("--collection-name", default=DEFAULT_COLLECTION_NAME)
+    parser.add_argument("--model-name", default=DEFAULT_MODEL_NAME)
+    parser.add_argument("--batch-size", default=64, type=int)
+    parser.add_argument(
+        "--no-reset",
+        action="store_true",
+        help="Add to the existing Chroma collection instead of rebuilding it.",
+    )
+
+    query_parser = subparsers.add_parser("query", help="Retrieve chunks from ChromaDB.")
+    query_parser.add_argument("query")
+    query_parser.add_argument("--top-k", default=50, type=int)
+    query_parser.add_argument("--persist-dir", default=DEFAULT_PERSIST_DIR, type=Path)
+    query_parser.add_argument("--collection-name", default=DEFAULT_COLLECTION_NAME)
+    query_parser.add_argument("--model-name", default=DEFAULT_MODEL_NAME)
     return parser.parse_args()
 
 
 def main() -> int:
-    """Run the document ingestion command-line workflow.
+    """Run the document indexing or retrieval command-line workflow.
 
     Returns:
         Process exit code. Returns ``0`` on success and ``1`` when validation
@@ -350,20 +370,38 @@ def main() -> int:
     """
     args = parse_args()
     try:
-        supported_files, skipped_files, chunk_count = ingest_documents(
+        if args.command == "query":
+            results = retrieve(
+                args.query,
+                top_k=args.top_k,
+                persist_dir=args.persist_dir,
+                collection_name=args.collection_name,
+                model_name=args.model_name,
+            )
+            print(json.dumps(results, ensure_ascii=False, indent=2))
+            return 0
+
+        chunks, supported_files, skipped_files = ingest_documents(
             args.input_dir,
-            args.output,
             chunk_size=args.chunk_size,
             overlap=args.overlap,
             min_chunk_tokens=args.min_chunk_tokens,
+        )
+        indexed_count = embed_and_index(
+            chunks,
+            persist_dir=args.persist_dir,
+            collection_name=args.collection_name,
+            model_name=args.model_name,
+            batch_size=args.batch_size,
+            reset=not args.no_reset,
         )
     except (FileNotFoundError, NotADirectoryError, ValueError) as error:
         print(f"Error: {error}", file=sys.stderr)
         return 1
 
     print(
-        f"Wrote {chunk_count} chunks from {supported_files} supported files "
-        f"to {args.output} ({skipped_files} skipped)."
+        f"Indexed {indexed_count} chunks from {supported_files} supported files "
+        f"into {args.persist_dir}/{args.collection_name} ({skipped_files} skipped)."
     )
     return 0
 
